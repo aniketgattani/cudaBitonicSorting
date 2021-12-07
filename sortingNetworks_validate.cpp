@@ -62,6 +62,8 @@ extern "C" uint validateSortedKeys(
             else
             {
                 flag = 0;
+                printf("not equal at %u \n", i);
+
                 break;
             }
         }

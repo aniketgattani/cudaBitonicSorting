@@ -319,3 +319,35 @@ extern "C" uint bitonicSort(
 
     return threadCount;
 }
+
+
+extern "C" uint bitonicSort1(
+    uint *d_DstKey,
+    uint *d_DstVal,
+    uint *d_SrcKey,
+    uint *d_SrcVal,
+    uint batchSize,
+    uint arrayLength,
+    uint dir
+)
+{
+    //Nothing to sort
+    if (arrayLength < 2)
+        return 0;
+
+    //Only power-of-two array lengths are supported by this implementation
+    uint log2L;
+    uint factorizationRemainder = factorRadix2(&log2L, arrayLength);
+    assert(factorizationRemainder == 1);
+
+    dir = (dir != 0);
+
+    uint  blockCount = batchSize * arrayLength / SHARED_SIZE_LIMIT;
+    uint threadCount = SHARED_SIZE_LIMIT / 2;
+
+    uint size = arrayLength;
+    uint stride = size / 2;
+
+    bitonicMergeGlobal<<<(batchSize * arrayLength) / 512, 256>>>(d_DstKey, d_DstVal, d_DstKey, d_DstVal, arrayLength, size, stride, dir);
+    return threadCount;
+}
