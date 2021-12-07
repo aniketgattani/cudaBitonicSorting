@@ -72,6 +72,7 @@ int main(int argc, char **argv)
     h_InputVal     = (uint *)malloc(N * sizeof(uint));
     h_OutputKeyGPU = (uint *)malloc(N * sizeof(uint));
     h_OutputValGPU = (uint *)malloc(N * sizeof(uint));
+    temp = (uint *)malloc(N * sizeof(uint));
     srand(2001);
 
     for (uint i = 0; i < N; i++)
@@ -188,6 +189,10 @@ int main(int argc, char **argv)
                     error = cudaMemcpy(d_InputVal, h1_OutputValGPU, Nmax/2 * sizeof(uint), cudaMemcpyHostToDevice);
                     checkCudaErrors(error);
 
+                    error = cudaMemcpy(temp, d_InputKey, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost);
+                    checkCudaErrors(error);
+                    
+            printArray(temp, Nmax/2);
 		    printArray(h1_OutputKeyGPU, Nmax/2); 
                    
 		    h1_OutputKeyGPU += stride;
@@ -199,7 +204,12 @@ int main(int argc, char **argv)
                     checkCudaErrors(error);
                     error = cudaMemcpy(d_InputVal, h1_OutputValGPU, Nmax/2 * sizeof(uint), cudaMemcpyHostToDevice);
                     checkCudaErrors(error);
+                   
+                   error = cudaMemcpy(temp, d_InputKey, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost);
+                    checkCudaErrors(error);
                     
+                printArray(temp, Nmax/2); 
+                
                     d_InputKey -= Nmax/2;
                     d_InputVal -= Nmax/2;
                     
@@ -228,8 +238,6 @@ int main(int argc, char **argv)
                     checkCudaErrors(error);
 
 		    printf("Half array, i: %u, j: %u, diff: %d, dir: %u \n", i, j, h1_OutputKeyGPU-h_OutputKeyGPU, dir);
-		   // printArray(h_OutputKeyGPU, N); 
-		    //printArray(d_OutputKey, Nmax); 
                     
 		    h1_OutputKeyGPU = h_OutputKeyGPU + i*size + j*(Nmax/2) + stride;
                     h1_OutputValGPU = h_OutputValGPU + i*size + j*(Nmax/2) + stride;
