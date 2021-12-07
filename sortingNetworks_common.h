@@ -45,6 +45,18 @@ extern "C" int validateValues(
 // CUDA sorting networks
 ////////////////////////////////////////////////////////////////////////////////
 
+extern "C" uint bitonicSort1(
+    uint *d_DstKey,
+    uint *d_DstVal,
+    uint *d_SrcKey,
+    uint *d_SrcVal,
+    uint batchSize,
+    uint arrayLength,
+    uint size,
+    uint stride,
+    uint dir
+);
+
 extern "C" uint bitonicSort(
     uint *d_DstKey,
     uint *d_DstVal,

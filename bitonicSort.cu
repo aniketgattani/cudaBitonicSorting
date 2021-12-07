@@ -179,7 +179,7 @@ __global__ void bitonicMergeGlobal(
 {
     uint global_comparatorI = blockIdx.x * blockDim.x + threadIdx.x;
     uint        comparatorI = global_comparatorI & (arrayLength / 2 - 1);
-
+    
     //Bitonic merge
     uint ddd = dir ^ ((comparatorI & (size / 2)) != 0);
     uint pos = 2 * global_comparatorI - (global_comparatorI & (stride - 1));
@@ -189,12 +189,16 @@ __global__ void bitonicMergeGlobal(
     uint keyB = d_SrcKey[pos + stride];
     uint valB = d_SrcVal[pos + stride];
 
+    for(int i=0;i<8;i++) {
+	printf("%u-%u ", d_SrcKey[i], threadIdx.x);
+    }
+    printf(" %d, %d, %d, %u, %u, %u, %u \n", blockIdx.x, blockDim.x, threadIdx.x, keyA, keyB, pos, pos+stride);
     Comparator(
         keyA, valA,
         keyB, valB,
         ddd
     );
-
+	//printf("%u %u \n", keyA, keyB);
     d_DstKey[pos +      0] = keyA;
     d_DstVal[pos +      0] = valA;
     d_DstKey[pos + stride] = keyB;
@@ -294,8 +298,11 @@ extern "C" uint bitonicSort(
 
     uint  blockCount = batchSize * arrayLength / SHARED_SIZE_LIMIT;
     uint threadCount = SHARED_SIZE_LIMIT / 2;
-
-    if (arrayLength <= SHARED_SIZE_LIMIT)
+    
+    if(batchSize * arrayLength < SHARED_SIZE_LIMIT){
+	bitonicSortShared<<<batchSize, arrayLength>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, dir);
+    }
+    else if (arrayLength <= SHARED_SIZE_LIMIT)
     {
         assert((batchSize * arrayLength) % SHARED_SIZE_LIMIT == 0);
         bitonicSortShared<<<blockCount, threadCount>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, dir);
@@ -328,6 +335,8 @@ extern "C" uint bitonicSort1(
     uint *d_SrcVal,
     uint batchSize,
     uint arrayLength,
+    uint size,
+    uint stride,
     uint dir
 )
 {
@@ -345,9 +354,6 @@ extern "C" uint bitonicSort1(
     uint  blockCount = batchSize * arrayLength / SHARED_SIZE_LIMIT;
     uint threadCount = SHARED_SIZE_LIMIT / 2;
 
-    uint size = arrayLength;
-    uint stride = size / 2;
-
-    bitonicMergeGlobal<<<(batchSize * arrayLength) / 512, 256>>>(d_DstKey, d_DstVal, d_DstKey, d_DstVal, arrayLength, size, stride, dir);
+    bitonicMergeGlobal<<<1, arrayLength/2>>>(d_DstKey, d_DstVal, d_DstKey, d_DstVal, arrayLength, size, stride, dir);
     return threadCount;
 }

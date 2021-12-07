@@ -54,7 +54,8 @@ extern "C" uint validateSortedKeys(
 
         for (uint i = 0; i < arrayLength; i++)
         {
-            if (srcKey[i] < numValues && resKey[i] < numValues)
+            printf("i: %u, val: %u \n", i, resKey[i]);
+	    if (srcKey[i] < numValues && resKey[i] < numValues)
             {
                 srcHist[srcKey[i]]++;
                 resHist[resKey[i]]++;

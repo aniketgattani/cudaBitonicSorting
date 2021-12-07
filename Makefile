@@ -154,6 +154,7 @@ NVCC          := $(CUDA_PATH)/bin/nvcc -ccbin $(HOST_COMPILER)
 NVCCFLAGS   := -m${TARGET_SIZE} -lineinfo -Wno-deprecated-gpu-targets --resource-usage    
 CCFLAGS     :=
 LDFLAGS     :=
+N = 1048576
 
 # build flags
 ifeq ($(TARGET_OS),darwin)
@@ -300,7 +301,7 @@ sortingNetworks: bitonicSort.o main.o oddEvenMergeSort.o sortingNetworks_validat
 	$(EXEC) $(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $+ $(LIBRARIES)
 
 run: build
-	$(EXEC) ./sortingNetworks
+	$(EXEC) ./sortingNetworks $(N)
 
 clean:
 	rm -f sortingNetworks bitonicSort.o main.o oddEvenMergeSort.o sortingNetworks_validate.o
