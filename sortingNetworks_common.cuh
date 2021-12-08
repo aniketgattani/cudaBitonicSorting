@@ -15,11 +15,10 @@
 #define SORTINGNETWORKS_COMMON_CUH
 
 
-
 #include "sortingNetworks_common.h"
 
 //Enables maximum occupancy
-#define SHARED_SIZE_LIMIT 1024U
+//#define SHARED_SIZE_LIMIT 1024U
 
 //Map to single instructions on G8x / G9x / G100
 #define    UMUL(a, b) __umul24((a), (b))

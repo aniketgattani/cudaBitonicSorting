@@ -27,7 +27,8 @@ extern "C" uint validateSortedKeys(
     uint batchSize,
     uint arrayLength,
     uint numValues,
-    uint dir
+    uint dir,
+    uint verbose
 )
 {
     uint *srcHist;
@@ -54,7 +55,8 @@ extern "C" uint validateSortedKeys(
 
         for (uint i = 0; i < arrayLength; i++)
         {
-            printf("i: %u, val: %u \n", i, resKey[i]);
+            if(verbose)
+	    printf("i: %u, val: %u \n", i, resKey[i]);
 	    if (srcKey[i] < numValues && resKey[i] < numValues)
             {
                 srcHist[srcKey[i]]++;
@@ -64,8 +66,8 @@ extern "C" uint validateSortedKeys(
             {
                 flag = 0;
                 printf("not equal at %u \n", i);
-
-                break;
+		break;
+                
             }
         }
 
@@ -105,6 +107,7 @@ extern "C" uint validateSortedKeys(
             for (uint i = 0; i < arrayLength - 1; i++)
                 if (resKey[i + 1] > resKey[i])
                 {
+			printf("not ordered at i %u \n",i);
                     flag = 0;
                     break;
                 }

@@ -17,7 +17,7 @@
 
 #include <assert.h>
 #include <cooperative_groups.h>
-
+#include <math.h>
 namespace cg = cooperative_groups;
 #include <helper_cuda.h>
 #include "sortingNetworks_common.h"
@@ -50,8 +50,8 @@ __global__ void bitonicSortShared(
     d_DstVal += blockIdx.x * SHARED_SIZE_LIMIT + threadIdx.x;
     s_key[threadIdx.x +                       0] = d_SrcKey[                      0];
     s_val[threadIdx.x +                       0] = d_SrcVal[                      0];
-    s_key[threadIdx.x + (SHARED_SIZE_LIMIT / 2)] = d_SrcKey[(SHARED_SIZE_LIMIT / 2)];
-    s_val[threadIdx.x + (SHARED_SIZE_LIMIT / 2)] = d_SrcVal[(SHARED_SIZE_LIMIT / 2)];
+    s_key[threadIdx.x + (arrayLength / 2)] = d_SrcKey[(arrayLength / 2)];
+    s_val[threadIdx.x + (arrayLength / 2)] = d_SrcVal[(arrayLength / 2)];
 
     for (uint size = 2; size < arrayLength; size <<= 1)
     {
@@ -87,8 +87,8 @@ __global__ void bitonicSortShared(
     cg::sync(cta);
     d_DstKey[                      0] = s_key[threadIdx.x +                       0];
     d_DstVal[                      0] = s_val[threadIdx.x +                       0];
-    d_DstKey[(SHARED_SIZE_LIMIT / 2)] = s_key[threadIdx.x + (SHARED_SIZE_LIMIT / 2)];
-    d_DstVal[(SHARED_SIZE_LIMIT / 2)] = s_val[threadIdx.x + (SHARED_SIZE_LIMIT / 2)];
+    d_DstKey[(arrayLength / 2)] = s_key[threadIdx.x + (arrayLength / 2)];
+    d_DstVal[(arrayLength / 2)] = s_val[threadIdx.x + (arrayLength / 2)];
 }
 
 
@@ -193,7 +193,7 @@ __global__ void bitonicMergeGlobal(
 //	printf("%u-%u ", d_SrcKey[i], threadIdx.x);
 
     }
-    printf(" %d, %d, %d, %u, %u, %u, %u \n", blockIdx.x, blockDim.x, threadIdx.x, d_SrcKey[pos], d_SrcKey[pos+stride], pos, pos+stride);
+    //printf(" %d, %d, %d, %u, %u, %u, %u \n", blockIdx.x, blockDim.x, threadIdx.x, d_SrcKey[pos], d_SrcKey[pos+stride], pos, pos+stride);
     Comparator(
         keyA, valA,
         keyB, valB,
@@ -301,21 +301,25 @@ extern "C" uint bitonicSort(
     uint threadCount = SHARED_SIZE_LIMIT / 2;
     
     if(arrayLength <= SHARED_SIZE_LIMIT){
-	    bitonicSortShared<<<1, arrayLength/2>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, dir);
+	 //printf("arrayLength < SHARED_SIZE %u \n", arrayLength);   
+	 bitonicSortShared<<<1, arrayLength/2>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, dir);
     }
     else if (onlyMerge)
     {
-	uint size = arrayLength, stride = arrayLength/2;
-        bitonicMergeGlobal<<<1, arrayLength/2>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, size, stride, dir);
+//	printf("onlyMerge %u \n", arrayLength);   
+	uint size = arrayLength;
+	uint stride = arrayLength/2;
+        bitonicMergeGlobal<<<max(1, arrayLength/512), min(256, arrayLength/2)>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, size, stride, dir);
     }
     else
     {
+	//printf("idhar aaya \n");
         bitonicSortShared1<<<blockCount, threadCount>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal);
         for (uint size = 2 * SHARED_SIZE_LIMIT; size <= arrayLength; size <<= 1){
             for (unsigned stride = size / 2; stride > 0; stride >>= 1){
                 if (stride >= SHARED_SIZE_LIMIT)
                 {
-                    bitonicMergeGlobal<<<1, size/2>>>(d_DstKey, d_DstVal, d_DstKey, d_DstVal, arrayLength, size, stride, dir);
+                    bitonicMergeGlobal<<<max(1,arrayLength/512), min(256, arrayLength/2)>>>(d_DstKey, d_DstVal, d_DstKey, d_DstVal, arrayLength, size, stride, dir);
                 }
                 else
                 {

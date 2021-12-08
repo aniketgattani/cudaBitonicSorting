@@ -16,7 +16,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 typedef unsigned int uint;
 
-
+#define SHARED_SIZE_LIMIT 4U
+#define Nmax 16U
 
 ///////////////////////////////////////////////////////////////////////////////
 // Sort result validation routines
@@ -28,7 +29,8 @@ extern "C" uint validateSortedKeys(
     uint batchSize,
     uint arrayLength,
     uint numValues,
-    uint dir
+    uint dir,
+    uint verbose
 );
 
 extern "C" int validateValues(
@@ -62,8 +64,8 @@ extern "C" uint bitonicSort(
     uint *d_DstVal,
     uint *d_SrcKey,
     uint *d_SrcVal,
-    uint batchSize,
     uint arrayLength,
+    uint onlyMerge,
     uint dir
 );
 
