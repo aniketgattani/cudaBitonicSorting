@@ -252,7 +252,7 @@ int main(int argc, char **argv)
                 }
     		//if(arrayLength == 16) printArray(h_OutputKeyGPU, N);
             }
-		//int keysFlag = v1(h_OutputKeyGPU, arrayLength, N);
+		int keysFlag = v1(h_OutputKeyGPU, arrayLength, N);
         }
     }
     arrayLength = N;
