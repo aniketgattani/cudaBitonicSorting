@@ -41,6 +41,37 @@ void printArray(uint *a, int size){
     	printf("\n"); 
 
 }
+int v1(uint* out, uint size, uint tot_size){
+    uint dir = 0;
+    int flag=0;
+    for(uint i=0;i<tot_size/size;i++){
+        for(int j=0;j<size;j++){
+		if(j!=0 and dir==0 and (out[i*size+j]>out[i*size+j-1])) {
+			printf("nahi chala3 %u %u %u, %u \n", i, j, out[i*size+j], out[i*size+j-1]);
+			flag=i+1; 
+}
+		if(j!=0 and dir==1 and (out[i*size+j]<out[i*size+j-1])) flag=i+1; 
+        }
+        dir=1-dir;
+    }
+    if(flag!=0) {
+    	for(uint i=0;i<tot_size;i++) printf("%u ", out[i]);
+		printf("-------------------- \n");
+	printf("nahi chala 1, %u %u \n", size, flag);
+   }
+   flag=0;
+     for(uint i=0;i<tot_size/(size);i++){
+        for(int j=size/2;j<size;j++){
+             if(out[j]>out[i*size+size/2-1]) flag=i+1;
+        }
+    }
+/*    if(flag!=0) {
+    	for(uint i=(flag-1)*size;i<flag*size;i++) printf("%u ", out[i]);
+		printf("-------------------- \n");
+	printf("nahi chala 1, %u %u \n", size, flag);
+   }*/
+    return 0;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Test driver
@@ -59,7 +90,7 @@ int main(int argc, char **argv)
     //const uint          Nmax = 8;
     const uint           DIR = 0;
     const uint     numValues = 65536;
-    uint verbose = 1;
+    uint verbose = 0;
     if(argc>=3) atoi(argv[2]);
 
     printf("Allocating and initializing host arrays...\n\n");
@@ -73,7 +104,7 @@ int main(int argc, char **argv)
 
     for (uint i = 0; i < N; i++)
     {
-        h_InputKey[i] = rand()%N;
+        h_InputKey[i] = rand()%numValues;
         h_InputVal[i] = i;
     }
     if(verbose)
@@ -137,12 +168,15 @@ int main(int argc, char **argv)
         	    if(verbose){
                     printf("Performing Bitonic Merge using Nmax at a time, size: %u, stride: %u \n", size, stride);
 		 }
+              
+		    //printArray(h_OutputKeyGPU, N);
+ 
                 
-                dir = DIR;
                 for(uint i=0; i < N/size; i++){
                     for(uint j=0; j < stride/(Nmax/2); j++){
+			dir = ((i*size + j*(Nmax/2))/arrayLength)%2;
         		if(verbose)
-			printf("%u %u %u, %u \n", i, j, size, stride);	    
+			printf("%u %u %u, %u %u \n", i, j, size, stride, dir);	    
                         h1_OutputKeyGPU = h_OutputKeyGPU + i*size + j*(Nmax/2);
                         h1_OutputValGPU = h_OutputValGPU + i*size + j*(Nmax/2);
 
@@ -196,6 +230,8 @@ int main(int argc, char **argv)
                         error = cudaMemcpy(h1_OutputValGPU, d_OutputVal, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost);
                         checkCudaErrors(error);
 
+			if(verbose)
+        	            printArray(h1_OutputKeyGPU, Nmax/2); 
                         
         	            h1_OutputKeyGPU += stride;
                         h1_OutputValGPU += stride;
@@ -207,15 +243,16 @@ int main(int argc, char **argv)
                         error = cudaMemcpy(h1_OutputValGPU, d_OutputVal, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost);
                         checkCudaErrors(error);
 			if(verbose)
-        	            printArray(h_OutputKeyGPU, N); 
+        	            printArray(h1_OutputKeyGPU, Nmax/2); 
 
                         d_OutputKey -= Nmax/2;
                         d_OutputVal -= Nmax/2;
                     }
                     if(arrayLength != N) dir = 1 - dir;
                 }
-                
+    		//if(arrayLength == 16) printArray(h_OutputKeyGPU, N);
             }
+		//int keysFlag = v1(h_OutputKeyGPU, arrayLength, N);
         }
     }
     arrayLength = N;

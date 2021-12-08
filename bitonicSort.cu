@@ -309,7 +309,7 @@ extern "C" uint bitonicSort(
 //	printf("onlyMerge %u \n", arrayLength);   
 	uint size = arrayLength;
 	uint stride = arrayLength/2;
-        bitonicMergeGlobal<<<max(1, arrayLength/512), min(256, arrayLength/2)>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, size, stride, dir);
+        bitonicMergeGlobal<<<max(1, blockCount), min(threadCount, arrayLength/2)>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, size, stride, dir);
     }
     else
     {
@@ -319,7 +319,7 @@ extern "C" uint bitonicSort(
             for (unsigned stride = size / 2; stride > 0; stride >>= 1){
                 if (stride >= SHARED_SIZE_LIMIT)
                 {
-                    bitonicMergeGlobal<<<max(1,arrayLength/512), min(256, arrayLength/2)>>>(d_DstKey, d_DstVal, d_DstKey, d_DstVal, arrayLength, size, stride, dir);
+                    bitonicMergeGlobal<<<max(1,blockCount), min(threadCount, arrayLength/2)>>>(d_DstKey, d_DstVal, d_DstKey, d_DstVal, arrayLength, size, stride, dir);
                 }
                 else
                 {
