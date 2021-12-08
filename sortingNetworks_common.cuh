@@ -28,9 +28,7 @@
 
 __device__ inline void Comparator(
     uint &keyA,
-    uint &valA,
     uint &keyB,
-    uint &valB,
     uint dir
 )
 {
@@ -41,9 +39,6 @@ __device__ inline void Comparator(
         t = keyA;
         keyA = keyB;
         keyB = t;
-        t = valA;
-        valA = valB;
-        valB = t;
     }
 }
 
