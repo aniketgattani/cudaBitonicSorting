@@ -35,17 +35,11 @@
 uint *h_InputKey, *h_InputVal, *h_OutputKeyGPU, *h_OutputValGPU;
 uint *h1_InputKey, *h1_InputVal, *h1_OutputKeyGPU, *h1_OutputValGPU;
 uint *d_InputKey, *d_InputVal,    *d_OutputKey,    *d_OutputVal;
-uint *temp;
-void resetPointers(){
-    h1_InputKey = h_InputKey;
-    h1_InputVal = h_InputVal;
-    h1_OutputKeyGPU = h_OutputKeyGPU;
-    h1_OutputValGPU = h_OutputValGPU;
-}
 
 void printArray(uint *a, int size){
-    for(int i=0; i < size; i++) printf("%u ", a[i]);
-    printf("\n"); 
+    // for(int i=0; i < size; i++) printf("%u ", a[i]);
+    // printf("\n"); 
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -62,9 +56,11 @@ int main(int argc, char **argv)
     StopWatchInterface *hTimer = NULL;
 
     const uint             N = atoi(argv[1]);
-    const uint          Nmax = 8;
+    const uint          Nmax = 1048576;
     const uint           DIR = 0;
     const uint     numValues = 65536;
+    uint verbose = 0;
+    if(argc>=3) atoi(argv[2]);
 
     printf("Allocating and initializing host arrays...\n\n");
     sdkCreateTimer(&hTimer);
@@ -93,9 +89,7 @@ int main(int argc, char **argv)
     checkCudaErrors(error);
     
     int flag = 1;
-    //printf("Running GPU bitonic sort (%u identical iterations)...\n\n", numIterations);
 
-    
     error = cudaDeviceSynchronize();
     checkCudaErrors(error);
 
@@ -105,7 +99,6 @@ int main(int argc, char **argv)
     uint arrayLength = Nmax;
     uint dir = DIR;
     uint threadCount;
-    resetPointers();
 
     if(N < Nmax) {
 	
@@ -119,8 +112,8 @@ int main(int argc, char **argv)
             d_OutputVal,
             d_InputKey,
             d_InputVal,
-            1,
             N,
+            0,
             dir
         );
 
@@ -133,55 +126,19 @@ int main(int argc, char **argv)
         checkCudaErrors(error);
     }
     else{
-    /*for(int i=0; i < N/Nmax; i++){      
-        printf("Testing array length %u (%u arrays per batch)...\n", arrayLength, N/arrayLength);
-        
-        h1_InputKey = h_InputKey + Nmax*i;
-        h1_InputVal = h_InputVal + Nmax*i;
-        
-        error = cudaMemcpy(d_InputKey, h1_InputKey, Nmax * sizeof(uint), cudaMemcpyHostToDevice);
-        checkCudaErrors(error);
-        error = cudaMemcpy(d_InputVal, h1_InputVal, Nmax * sizeof(uint), cudaMemcpyHostToDevice);
-        checkCudaErrors(error);
-        
-        threadCount = bitonicSort(
-            d_OutputKey,
-            d_OutputVal,
-            d_InputKey,
-            d_InputVal,
-            1,
-            Nmax,
-            dir
-        );
-
-        error = cudaDeviceSynchronize();
-        checkCudaErrors(error);
-        h1_OutputKeyGPU = h_OutputKeyGPU + Nmax*i;
-        h1_OutputValGPU = h_OutputValGPU + Nmax*i;
-
-        error = cudaMemcpy(h1_OutputKeyGPU, d_OutputKey, Nmax * sizeof(uint), cudaMemcpyDeviceToHost);
-        checkCudaErrors(error);
-        error = cudaMemcpy(h1_OutputValGPU, d_OutputVal, Nmax * sizeof(uint), cudaMemcpyDeviceToHost);
-        checkCudaErrors(error);
-        
-	printArray(h_OutputKeyGPU, N);
-        dir = 1 - dir;
-    }*/
-    memcpy(h_OutputKeyGPU, h_InputKey, N * sizeof(uint));
-    memcpy(h_OutputValGPU, h_InputVal, N * sizeof(uint));
-    resetPointers();
-    printf("Nmax done \n");
-    printArray(h_OutputKeyGPU, N);
-    for(arrayLength = Nmax; arrayLength <= N; arrayLength*=2){
-        
+        memcpy(h_OutputKeyGPU, h_InputKey, N * sizeof(uint));
+        memcpy(h_OutputValGPU, h_InputVal, N * sizeof(uint));
+        printArray(h_OutputKeyGPU, N);
+        for(arrayLength = Nmax; arrayLength <= N; arrayLength*=2){
         for(uint size = arrayLength, stride = arrayLength/2; size >= Nmax; size >>= 1, stride >>= 1){
-	    printf("Performing Bitonic Merge using Nmax at a time, size: %u, stride: %u \n", size, stride);
-            resetPointers();
-	    dir = DIR;
+    	    if(verbose){
+                printf("Performing Bitonic Merge using Nmax at a time, size: %u, stride: %u \n", size, stride);
+            }
+            
+            dir = DIR;
             for(uint i=0; i < N/size; i++){
-                
                 for(uint j=0; j < stride/(Nmax/2); j++){
-		    resetPointers();
+    	    
                     h1_OutputKeyGPU = h_OutputKeyGPU + i*size + j*(Nmax/2);
                     h1_OutputValGPU = h_OutputValGPU + i*size + j*(Nmax/2);
 
@@ -193,10 +150,9 @@ int main(int argc, char **argv)
                     error = cudaMemcpy(temp, d_InputKey, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost);
                     checkCudaErrors(error);
         
-            printArray(temp, Nmax/2);
-		    printArray(h1_OutputKeyGPU, Nmax/2); 
+            	    printArray(h1_OutputKeyGPU, Nmax/2); 
                    
-		    h1_OutputKeyGPU += stride;
+    	            h1_OutputKeyGPU += stride;
                     h1_OutputValGPU += stride;
                     d_InputKey += Nmax/2;
                     d_InputVal += Nmax/2;
@@ -206,42 +162,23 @@ int main(int argc, char **argv)
                     error = cudaMemcpy(d_InputVal, h1_OutputValGPU, Nmax/2 * sizeof(uint), cudaMemcpyHostToDevice);
                     checkCudaErrors(error);
                    
-                   error = cudaMemcpy(temp, d_InputKey, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost);
-                    checkCudaErrors(error);
-                    
-                printArray(temp, Nmax/2); 
-                
                     d_InputKey -= Nmax/2;
                     d_InputVal -= Nmax/2;
                     
-		    printArray(h1_OutputKeyGPU, Nmax/2); 
-		
-		    if(size == Nmax){
-		    
-                    	threadCount = bitonicSort(
+                    printArray(h1_OutputKeyGPU, Nmax/2); 
+                                    
+    	    
+	            	threadCount = bitonicSort(
                         d_OutputKey,
                         d_OutputVal,
                         d_InputKey,
                         d_InputVal,
                         1,
                         Nmax,
-                        dir
-                    );
-		    }
-		    else
-                    threadCount = bitonicSort1(
-                        d_OutputKey,
-                        d_OutputVal,
-                        d_InputKey,
-                        d_InputVal,
-                        1,
-                        Nmax,
-			Nmax,
-			Nmax/2,
                         dir
                     );
                     
-		    h1_OutputKeyGPU = h_OutputKeyGPU + i*size + j*(Nmax/2);
+    	            h1_OutputKeyGPU = h_OutputKeyGPU + i*size + j*(Nmax/2);
                     h1_OutputValGPU = h_OutputValGPU + i*size + j*(Nmax/2);
 
                     error = cudaDeviceSynchronize();
@@ -252,10 +189,12 @@ int main(int argc, char **argv)
                     error = cudaMemcpy(h1_OutputValGPU, d_OutputVal, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost);
                     checkCudaErrors(error);
 
-		    printf("Half array, i: %u, j: %u, diff: %d, dir: %u \n", i, j, h1_OutputKeyGPU-h_OutputKeyGPU, dir);
+    	            if(verbose){
+                        printf("Half array, i: %u, j: %u, diff: %d, dir: %u \n", i, j, h1_OutputKeyGPU-h_OutputKeyGPU, dir);    
+                    }
                     
-		    h1_OutputKeyGPU = h_OutputKeyGPU + i*size + j*(Nmax/2) + stride;
-                    h1_OutputValGPU = h_OutputValGPU + i*size + j*(Nmax/2) + stride;
+    	            h1_OutputKeyGPU += stride;
+                    h1_OutputValGPU += stride;
                     d_OutputKey += Nmax/2;
                     d_OutputVal += Nmax/2;
 
@@ -263,8 +202,8 @@ int main(int argc, char **argv)
                     checkCudaErrors(error);
                     error = cudaMemcpy(h1_OutputValGPU, d_OutputVal, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost);
                     checkCudaErrors(error);
- 
-		    printArray(h_OutputKeyGPU, N); 
+
+    	            printArray(h_OutputKeyGPU, N); 
 
                     d_OutputKey -= Nmax/2;
                     d_OutputVal -= Nmax/2;
@@ -274,22 +213,17 @@ int main(int argc, char **argv)
             }
         }
     }
-    }
     uint numIterations = 1;
     sdkStopTimer(&hTimer);
     printf("Average time: %f ms\n\n", sdkGetTimerValue(&hTimer) / numIterations);
 
-    arrayLength = N;
-   // if (arrayLength == N)
-    {
-        double dTimeSecs = 1.0e-3 * sdkGetTimerValue(&hTimer) / numIterations;
-        printf("sortingNetworks-bitonic, Throughput = %.4f MElements/s, Time = %.5f s, Size = %u elements, NumDevsUsed = %u, Workgroup = %u\n",
-               (1.0e-6 * (double)arrayLength/dTimeSecs), dTimeSecs, N, 1, threadCount);
-    }
+    
+    double dTimeSecs = 1.0e-3 * sdkGetTimerValue(&hTimer) / numIterations;
+    printf("sortingNetworks-bitonic, Throughput = %.4f MElements/s, Time = %.5f s, Size = %u elements, NumDevsUsed = %u, Workgroup = %u\n",
+           (1.0e-6 * (double)arrayLength/dTimeSecs), dTimeSecs, N, 1, threadCount);
 
     printf("\nValidating the results...\n");
     printf("...reading back GPU results\n");
-
 
     int keysFlag = validateSortedKeys(h_OutputKeyGPU, h_InputKey, 1, arrayLength, numValues, DIR);
     int valuesFlag = validateValues(h_OutputKeyGPU, h_OutputValGPU, h_InputKey, 1, arrayLength);

@@ -281,8 +281,8 @@ extern "C" uint bitonicSort(
     uint *d_DstVal,
     uint *d_SrcKey,
     uint *d_SrcVal,
-    uint batchSize,
     uint arrayLength,
+    uint onlyMerge,
     uint dir
 )
 {
@@ -297,23 +297,21 @@ extern "C" uint bitonicSort(
 
     dir = (dir != 0);
 
-    uint  blockCount = batchSize * arrayLength / SHARED_SIZE_LIMIT;
+    uint blockCount = arrayLength / SHARED_SIZE_LIMIT;
     uint threadCount = SHARED_SIZE_LIMIT / 2;
     
-    if(batchSize * arrayLength < SHARED_SIZE_LIMIT){
-	bitonicSortShared<<<batchSize, arrayLength>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, dir);
+    if(arrayLength <= SHARED_SIZE_LIMIT){
+	    bitonicSortShared<<<1, arrayLength/2>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, dir);
     }
-    else if (arrayLength <= SHARED_SIZE_LIMIT)
+    else if (onlyMerge)
     {
-        assert((batchSize * arrayLength) % SHARED_SIZE_LIMIT == 0);
-        bitonicSortShared<<<blockCount, threadCount>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, dir);
+        bitonicMergeGlobal<<<batchSize, arrayLength/2>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, size, stride, dir);
     }
     else
     {
         bitonicSortShared1<<<blockCount, threadCount>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal);
-	printf("array > SHARED %u \n", arrayLength);
-        for (uint size = 2 * SHARED_SIZE_LIMIT; size <= arrayLength; size <<= 1)
-            for (unsigned stride = size / 2; stride > 0; stride >>= 1)
+        for (uint size = 2 * SHARED_SIZE_LIMIT; size <= arrayLength; size <<= 1){
+            for (unsigned stride = size / 2; stride > 0; stride >>= 1){
                 if (stride >= SHARED_SIZE_LIMIT)
                 {
                     bitonicMergeGlobal<<<1, size/2>>>(d_DstKey, d_DstVal, d_DstKey, d_DstVal, arrayLength, size, stride, dir);
@@ -323,38 +321,9 @@ extern "C" uint bitonicSort(
                     bitonicMergeShared<<<blockCount, threadCount>>>(d_DstKey, d_DstVal, d_DstKey, d_DstVal, arrayLength, size, dir);
                     break;
                 }
+            }
+        }
     }
 
-    return threadCount;
-}
-
-
-extern "C" uint bitonicSort1(
-    uint *d_DstKey,
-    uint *d_DstVal,
-    uint *d_SrcKey,
-    uint *d_SrcVal,
-    uint batchSize,
-    uint arrayLength,
-    uint size,
-    uint stride,
-    uint dir
-)
-{
-    //Nothing to sort
-    if (arrayLength < 2)
-        return 0;
-
-    //Only power-of-two array lengths are supported by this implementation
-    uint log2L;
-    uint factorizationRemainder = factorRadix2(&log2L, arrayLength);
-    assert(factorizationRemainder == 1);
-
-    dir = (dir != 0);
-
-    uint  blockCount = batchSize * arrayLength / SHARED_SIZE_LIMIT;
-    uint threadCount = SHARED_SIZE_LIMIT / 2;
-
-    bitonicMergeGlobal<<<1, arrayLength/2>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, size, stride, dir);
     return threadCount;
 }
