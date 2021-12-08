@@ -68,7 +68,7 @@ int main(int argc, char **argv)
     h_InputVal     = (uint *)malloc(N * sizeof(uint));
     h_OutputKeyGPU = (uint *)malloc(N * sizeof(uint));
     h_OutputValGPU = (uint *)malloc(N * sizeof(uint));
-    temp = (uint *)malloc(N * sizeof(uint));
+
     srand(2001);
 
     for (uint i = 0; i < N; i++)
@@ -146,10 +146,7 @@ int main(int argc, char **argv)
                     checkCudaErrors(error);
                     error = cudaMemcpy(d_InputVal, h1_OutputValGPU, Nmax/2 * sizeof(uint), cudaMemcpyHostToDevice);
                     checkCudaErrors(error);
-
-                    error = cudaMemcpy(temp, d_InputKey, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost);
-                    checkCudaErrors(error);
-        
+ 
             	    printArray(h1_OutputKeyGPU, Nmax/2); 
                    
     	            h1_OutputKeyGPU += stride;
@@ -167,14 +164,15 @@ int main(int argc, char **argv)
                     
                     printArray(h1_OutputKeyGPU, Nmax/2); 
                                     
-    	    
-	            	threadCount = bitonicSort(
+    	    	    uint onlyMerge = 1;
+		    if(size == Nmax) onlyMerge = 0;
+	            threadCount = bitonicSort(
                         d_OutputKey,
                         d_OutputVal,
                         d_InputKey,
                         d_InputVal,
-                        1,
                         Nmax,
+			0,
                         dir
                     );
                     

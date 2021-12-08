@@ -305,7 +305,8 @@ extern "C" uint bitonicSort(
     }
     else if (onlyMerge)
     {
-        bitonicMergeGlobal<<<batchSize, arrayLength/2>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, size, stride, dir);
+	uint size = arrayLength, stride = arrayLength/2;
+        bitonicMergeGlobal<<<1, arrayLength/2>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, size, stride, dir);
     }
     else
     {
