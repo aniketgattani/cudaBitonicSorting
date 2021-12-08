@@ -190,9 +190,10 @@ __global__ void bitonicMergeGlobal(
     uint valB = d_SrcVal[pos + stride];
 
     for(int i=0;i<8;i++) {
-	printf("%u-%u ", d_SrcKey[i], threadIdx.x);
+//	printf("%u-%u ", d_SrcKey[i], threadIdx.x);
+
     }
-    printf(" %d, %d, %d, %u, %u, %u, %u \n", blockIdx.x, blockDim.x, threadIdx.x, keyA, keyB, pos, pos+stride);
+    printf(" %d, %d, %d, %u, %u, %u, %u \n", blockIdx.x, blockDim.x, threadIdx.x, d_SrcKey[pos], d_SrcKey[pos+stride], pos, pos+stride);
     Comparator(
         keyA, valA,
         keyB, valB,
@@ -310,12 +311,12 @@ extern "C" uint bitonicSort(
     else
     {
         bitonicSortShared1<<<blockCount, threadCount>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal);
-
+	printf("array > SHARED %u \n", arrayLength);
         for (uint size = 2 * SHARED_SIZE_LIMIT; size <= arrayLength; size <<= 1)
             for (unsigned stride = size / 2; stride > 0; stride >>= 1)
                 if (stride >= SHARED_SIZE_LIMIT)
                 {
-                    bitonicMergeGlobal<<<(batchSize * arrayLength) / 512, 256>>>(d_DstKey, d_DstVal, d_DstKey, d_DstVal, arrayLength, size, stride, dir);
+                    bitonicMergeGlobal<<<1, size/2>>>(d_DstKey, d_DstVal, d_DstKey, d_DstVal, arrayLength, size, stride, dir);
                 }
                 else
                 {
@@ -354,6 +355,6 @@ extern "C" uint bitonicSort1(
     uint  blockCount = batchSize * arrayLength / SHARED_SIZE_LIMIT;
     uint threadCount = SHARED_SIZE_LIMIT / 2;
 
-    bitonicMergeGlobal<<<1, arrayLength/2>>>(d_DstKey, d_DstVal, d_DstKey, d_DstVal, arrayLength, size, stride, dir);
+    bitonicMergeGlobal<<<1, arrayLength/2>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, size, stride, dir);
     return threadCount;
 }

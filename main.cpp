@@ -35,7 +35,7 @@
 uint *h_InputKey, *h_InputVal, *h_OutputKeyGPU, *h_OutputValGPU;
 uint *h1_InputKey, *h1_InputVal, *h1_OutputKeyGPU, *h1_OutputValGPU;
 uint *d_InputKey, *d_InputVal,    *d_OutputKey,    *d_OutputVal;
-
+uint *temp;
 void resetPointers(){
     h1_InputKey = h_InputKey;
     h1_InputVal = h_InputVal;
@@ -133,7 +133,7 @@ int main(int argc, char **argv)
         checkCudaErrors(error);
     }
     else{
-    for(int i=0; i < N/Nmax; i++){      
+    /*for(int i=0; i < N/Nmax; i++){      
         printf("Testing array length %u (%u arrays per batch)...\n", arrayLength, N/arrayLength);
         
         h1_InputKey = h_InputKey + Nmax*i;
@@ -166,14 +166,15 @@ int main(int argc, char **argv)
         
 	printArray(h_OutputKeyGPU, N);
         dir = 1 - dir;
-    }
-
+    }*/
+    memcpy(h_OutputKeyGPU, h_InputKey, N * sizeof(uint));
+    memcpy(h_OutputValGPU, h_InputVal, N * sizeof(uint));
     resetPointers();
     printf("Nmax done \n");
     printArray(h_OutputKeyGPU, N);
-    for(arrayLength = 2*Nmax; arrayLength <= N; arrayLength*=2){
+    for(arrayLength = Nmax; arrayLength <= N; arrayLength*=2){
         
-        for(uint size = arrayLength, stride = arrayLength/2; size > Nmax; size >>= 1, stride >>= 1){
+        for(uint size = arrayLength, stride = arrayLength/2; size >= Nmax; size >>= 1, stride >>= 1){
 	    printf("Performing Bitonic Merge using Nmax at a time, size: %u, stride: %u \n", size, stride);
             resetPointers();
 	    dir = DIR;
@@ -191,7 +192,7 @@ int main(int argc, char **argv)
 
                     error = cudaMemcpy(temp, d_InputKey, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost);
                     checkCudaErrors(error);
-                    
+        
             printArray(temp, Nmax/2);
 		    printArray(h1_OutputKeyGPU, Nmax/2); 
                    
@@ -214,6 +215,20 @@ int main(int argc, char **argv)
                     d_InputVal -= Nmax/2;
                     
 		    printArray(h1_OutputKeyGPU, Nmax/2); 
+		
+		    if(size == Nmax){
+		    
+                    	threadCount = bitonicSort(
+                        d_OutputKey,
+                        d_OutputVal,
+                        d_InputKey,
+                        d_InputVal,
+                        1,
+                        Nmax,
+                        dir
+                    );
+		    }
+		    else
                     threadCount = bitonicSort1(
                         d_OutputKey,
                         d_OutputVal,
