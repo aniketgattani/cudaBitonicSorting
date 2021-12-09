@@ -68,7 +68,7 @@ int main(int argc, char **argv)
     StopWatchInterface *hTimer = NULL;
     StopWatchInterface *hTimerCopy = NULL;
 
-    const uint             N = atoi(argv[1]);
+    const uint             N = pow(2, atoi(argv[1]));
     //const uint          Nmax = 8;
     const uint           DIR = 0;
     const uint     numValues = 65536;
@@ -79,8 +79,8 @@ int main(int argc, char **argv)
     sdkCreateTimer(&hTimer);
     sdkCreateTimer(&hTimerCopy);
 
-    h_InputKey     = (uint *)malloc(N * sizeof(uint));
-    h_OutputKeyGPU = (uint *)malloc(N * sizeof(uint));
+    cudaMallocHost((uint *) &h_InputKey,(N * sizeof(uint));
+    cudaMallocHost((uint *) &h_OutputKeyGPU,(N * sizeof(uint));
     
     srand(2001);
 

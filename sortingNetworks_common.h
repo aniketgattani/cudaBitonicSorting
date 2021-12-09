@@ -44,13 +44,3 @@ extern "C" uint bitonicSort(
     uint onlyMerge,
     uint dir
 );
-
-extern "C" void oddEvenMergeSort(
-    uint *d_DstKey,
-    uint *d_DstVal,
-    uint *d_SrcKey,
-    uint *d_SrcVal,
-    uint batchSize,
-    uint arrayLength,
-    uint dir
-);
