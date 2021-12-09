@@ -48,7 +48,7 @@ void printArray(uint *a, int size){
 void copy(uint *dest, uint *src, size_t size, cudaMemcpyKind cudaMemcpyType, StopWatchInterface *timer){
     sdkResetTimer(&timer);
     sdkStartTimer(&timer);
-    cudaError_t error = cudaMemcpy(dest, src, N * sizeof(uint), cudaMemcpyType);
+    cudaError_t error = cudaMemcpy(dest, src, size, cudaMemcpyType);
     sdkStopTimer(&timer);
     copyTime += 1.0e-3 * sdkGetTimerValue(&timer);
     checkCudaErrors(error);
@@ -110,7 +110,7 @@ int main(int argc, char **argv)
     uint threadCount;
 
     if(N < Nmax) {
-        error = copy(d_InputKey, h_InputKey, N * sizeof(uint), cudaMemcpyHostToDevice, hTimerCopy);
+        copy(d_InputKey, h_InputKey, N * sizeof(uint), cudaMemcpyHostToDevice, hTimerCopy);
         
         threadCount = bitonicSort(
             d_OutputKey,
