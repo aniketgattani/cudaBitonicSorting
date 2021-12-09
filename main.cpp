@@ -37,11 +37,21 @@ using namespace std;
 uint *h_InputKey, *h_OutputKeyGPU;
 uint *h1_InputKey, *h1_OutputKeyGPU;
 uint *d_InputKey,  *d_OutputKey;
+double copyTime = 0;
 
 void printArray(uint *a, int size){
     for(int i=0; i < size; i++) printf("%u ", a[i]);
     	printf("\n"); 
 
+}
+
+void copy(uint *dest, uint *src, size_t size, cudaMemcpyKind cudaMemcpyType, StopWatchInterface *timer){
+    sdkResetTimer(&timer);
+    sdkStartTimer(&timer);
+    cudaError_t error = cudaMemcpy(dest, src, N * sizeof(uint), cudaMemcpyType);
+    sdkStopTimer(&timer);
+    copyTime += 1.0e-3 * sdkGetTimerValue(&timer);
+    checkCudaErrors(error);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -56,6 +66,7 @@ int main(int argc, char **argv)
     int dev = findCudaDevice(argc, (const char **)argv);
 
     StopWatchInterface *hTimer = NULL;
+    StopWatchInterface *hTimerCopy = NULL;
 
     const uint             N = atoi(argv[1]);
     //const uint          Nmax = 8;
@@ -66,6 +77,8 @@ int main(int argc, char **argv)
 
     printf("Allocating and initializing host arrays...\n\n");
     sdkCreateTimer(&hTimer);
+    sdkCreateTimer(&hTimerCopy);
+
     h_InputKey     = (uint *)malloc(N * sizeof(uint));
     h_OutputKeyGPU = (uint *)malloc(N * sizeof(uint));
     
@@ -97,8 +110,7 @@ int main(int argc, char **argv)
     uint threadCount;
 
     if(N < Nmax) {
-        error = cudaMemcpy(d_InputKey, h_InputKey, N * sizeof(uint), cudaMemcpyHostToDevice);
-        checkCudaErrors(error);
+        error = copy(d_InputKey, h_InputKey, N * sizeof(uint), cudaMemcpyHostToDevice, hTimerCopy);
         
         threadCount = bitonicSort(
             d_OutputKey,
@@ -111,8 +123,7 @@ int main(int argc, char **argv)
         error = cudaDeviceSynchronize();
         checkCudaErrors(error);
 
-        error = cudaMemcpy(h_OutputKeyGPU, d_OutputKey, N * sizeof(uint), cudaMemcpyDeviceToHost);
-        checkCudaErrors(error);
+        copy(h_OutputKeyGPU, d_OutputKey, N * sizeof(uint), cudaMemcpyDeviceToHost, hTimerCopy);
     }
     else{
         memcpy(h_OutputKeyGPU, h_InputKey, N * sizeof(uint));
@@ -135,14 +146,12 @@ int main(int argc, char **argv)
                         
                         h1_OutputKeyGPU = h_OutputKeyGPU + i*size + j*(Nmax/2);
                         
-                        error = cudaMemcpy(d_InputKey, h1_OutputKeyGPU, Nmax/2 * sizeof(uint), cudaMemcpyHostToDevice);
-                        checkCudaErrors(error);
-
+                        copy(d_InputKey, h1_OutputKeyGPU, Nmax/2 * sizeof(uint), cudaMemcpyHostToDevice, hTimerCopy);
+                        
         	            h1_OutputKeyGPU += stride;
                         d_InputKey += Nmax/2;
                         
-                        error = cudaMemcpy(d_InputKey, h1_OutputKeyGPU, Nmax/2 * sizeof(uint), cudaMemcpyHostToDevice);
-                        checkCudaErrors(error);
+                        copy(d_InputKey, h1_OutputKeyGPU, Nmax/2 * sizeof(uint), cudaMemcpyHostToDevice, hTimerCopy);
                        
                         d_InputKey -= Nmax/2;
         
@@ -164,16 +173,14 @@ int main(int argc, char **argv)
                         error = cudaDeviceSynchronize();
                         checkCudaErrors(error);
 
-                        error = cudaMemcpy(h1_OutputKeyGPU, d_OutputKey, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost);
-                        checkCudaErrors(error);
-
+                        copy(h1_OutputKeyGPU, d_OutputKey, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost, hTimerCopy);
+                        
 			            if(verbose) printArray(h1_OutputKeyGPU, Nmax/2); 
                         
         	            h1_OutputKeyGPU += stride;
                         d_OutputKey += Nmax/2;
 
-                        error = cudaMemcpy(h1_OutputKeyGPU, d_OutputKey, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost);
-                        checkCudaErrors(error);
+                        copy(h1_OutputKeyGPU, d_OutputKey, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost, hTimerCopy);
                         
                         if(verbose) printArray(h1_OutputKeyGPU, Nmax/2); 
 
@@ -190,8 +197,8 @@ int main(int argc, char **argv)
 
     
     double dTimeSecs = 1.0e-3 * sdkGetTimerValue(&hTimer) / numIterations;
-    printf("sortingNetworks-bitonic, Throughput = %.4f MElements/s, Time = %.5f s, Size = %u elements, NumDevsUsed = %u, Workgroup = %u\n",
-           (1.0e-6 * (double)N/dTimeSecs), dTimeSecs, N, 1, threadCount);
+    printf("sortingNetworks-bitonic, Throughput = %.4f MElements/s, Time = %.5f s, CopyTime = %.5f, Size = %u elements, NumDevsUsed = %u, Workgroup = %u\n",
+           (1.0e-6 * (double)N/dTimeSecs), dTimeSecs, copyTime, N, 1, threadCount);
 
     printf("\nValidating the results...\n");
     printf("...reading back GPU results\n");
