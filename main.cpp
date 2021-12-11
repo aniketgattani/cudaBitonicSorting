@@ -72,7 +72,7 @@ int main(int argc, char **argv)
     //const uint          Nmax = 8;
     const uint           DIR = 0;
     const uint     numValues = 65536;
-    uint verbose = 0;
+    uint verbose = 1;
     if(argc>=3) atoi(argv[2]);
 
     printf("Allocating and initializing host arrays...\n\n");
@@ -131,8 +131,10 @@ int main(int argc, char **argv)
     	sdkResetTimer(&hTimer);
     	sdkStartTimer(&hTimer);
     	
-	if(verbose) printArray(h_OutputKeyGPU, N);
-        
+	if(verbose) {
+		printf("Initial \n");
+		printArray(h_OutputKeyGPU, N);
+        }
 	   for(arrayLength = Nmax; arrayLength <= N; arrayLength*=2){
             
             for(uint size = arrayLength, stride = arrayLength/2; size >= Nmax; size >>= 1, stride >>= 1){
@@ -145,12 +147,18 @@ int main(int argc, char **argv)
 			             /* dir changes with each even odd subarray of length = arrayLength */
                         dir = ((i*size + j*(Nmax/2))/arrayLength)%2;
                         
-                        if(verbose) printf("%u %u %u, %u %u \n", i, j, size, stride, dir);	    
+        	    	uint onlyMerge = 1;
+                        if(size == Nmax) onlyMerge = 2;
+			if(arrayLength == Nmax) onlyMerge = 0;
+                        if(verbose) printf("i %u j %u size %u stride %u dir %u onlyMerge %u \n", i, j, size, stride, dir, onlyMerge);	    
                         
                         h1_OutputKeyGPU = h_OutputKeyGPU + i*size + j*(Nmax/2);
                         
                         copy(d_InputKey, h1_OutputKeyGPU, Nmax/2 * sizeof(uint), cudaMemcpyHostToDevice, hTimerCopy);
-                        
+			if(verbose)  {
+				printf("1st half \n");
+				printArray(h1_OutputKeyGPU, Nmax/2); 
+                        }
         	            h1_OutputKeyGPU += stride;
                         d_InputKey += Nmax/2;
                         
@@ -158,10 +166,10 @@ int main(int argc, char **argv)
                        
                         d_InputKey -= Nmax/2;
         
-                        if(verbose)  printArray(h1_OutputKeyGPU, Nmax/2); 
-                                        
-        	    	    uint onlyMerge = 1;
-                        if(size == Nmax) onlyMerge = 0;
+                        if(verbose)  {
+				printf("2nd half \n");
+				printArray(h1_OutputKeyGPU, Nmax/2); 
+                        }
 	                    
                         threadCount = bitonicSort(
                             d_OutputKey,
@@ -178,15 +186,19 @@ int main(int argc, char **argv)
 
                         copy(h1_OutputKeyGPU, d_OutputKey, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost, hTimerCopy);
                         
-			            if(verbose) printArray(h1_OutputKeyGPU, Nmax/2); 
-                        
+			            if(verbose) {
+				printf("1st half output \n");	
+				printArray(h1_OutputKeyGPU, Nmax/2); 
+                        }
         	            h1_OutputKeyGPU += stride;
                         d_OutputKey += Nmax/2;
 
                         copy(h1_OutputKeyGPU, d_OutputKey, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost, hTimerCopy);
                         
-                        if(verbose) printArray(h1_OutputKeyGPU, Nmax/2); 
-
+                        if(verbose) {
+				printf("2nd half output \n");
+				printArray(h1_OutputKeyGPU, Nmax/2); 
+			}
                         d_OutputKey -= Nmax/2;
                     }
                 }
