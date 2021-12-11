@@ -4,6 +4,7 @@
 #SBATCH --time=00:30:00 
 #SBATCH --cpus-per-task=2 
 #SBATCH --gres=gpu:kepler:1
+#SBATCH --reservation=comp422
 
 for ((i = 0; i <= 26; i++)); do 
   time ./sortingNetworks $i
