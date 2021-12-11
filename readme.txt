@@ -5,3 +5,12 @@ This sample implements bitonic sort and odd-even merge sort (also known as Batch
 
 Key concepts:
 Data-Parallel Algorithms
+
+# How to run:
+make - compiles the code using the nvcc compilter
+make clean - cleans the built binaries
+make gdb=1 - creates binaries with debug symbols loaded
+make run k - runs the bitonic sorting. k goes from 0 to 26. k=20 by default
+
+
+
