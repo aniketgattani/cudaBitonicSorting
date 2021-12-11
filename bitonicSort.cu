@@ -259,15 +259,35 @@ extern "C" uint bitonicSort(
     if(arrayLength <= SHARED_SIZE_LIMIT){
 	   bitonicSortShared<<<1, arrayLength/2>>>(d_DstKey, d_SrcKey, arrayLength, dir);
     }
-    else if (onlyMerge)
+    else if (onlyMerge==1)
     {
     	uint size = arrayLength;
     	uint stride = arrayLength/2;
         bitonicMergeGlobal<<<max(1, blockCount), min(threadCount, arrayLength/2)>>>(d_DstKey, d_SrcKey, arrayLength, size, stride, dir);
     }
+    else if (onlyMerge==2){
+        uint size = arrayLength;    
+        for (unsigned stride = size / 2; stride > 0; stride >>= 1){
+            if (stride >= SHARED_SIZE_LIMIT)
+            {
+                bitonicMergeGlobal<<<max(1,blockCount), arrayLength/(2*max(1, blockCount))>>>(d_DstKey, d_DstKey, arrayLength, stride*2, stride, dir);
+            }
+            else
+            {
+                bitonicMergeShared<<<blockCount, threadCount>>>(d_DstKey, d_DstKey, arrayLength, stride*2, dir);
+                break;
+            }
+        }
+    }
     else
     {
-	    bitonicSortShared1<<<blockCount, threadCount>>>(d_DstKey, d_SrcKey);
+        printf("idhar aaya \n"); 
+        bitonicSortShared1<<<blockCount, threadCount>>>(d_DstKey, d_SrcKey);
+        int temp[arrayLength];
+        cudaMemcpy(temp, d_DstKey, 8*sizeof(unsigned int), cudaMemcpyDeviceToHost);
+        for(int i=0; i < arrayLength; i++) printf("%u ", temp[i]);
+        printf("\n");
+	   
         for (uint size = 2 * SHARED_SIZE_LIMIT; size <= arrayLength; size <<= 1){
             for (unsigned stride = size / 2; stride > 0; stride >>= 1){
                 if (stride >= SHARED_SIZE_LIMIT)
