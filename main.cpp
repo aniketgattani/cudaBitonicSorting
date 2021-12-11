@@ -110,11 +110,11 @@ int main(int argc, char **argv)
     uint dir = DIR;
     uint threadCount;
 
-    // start timers        
-    sdkResetTimer(&hTimer);
-    sdkStartTimer(&hTimer);
-
     if(N < Nmax) {
+	   // start timers        
+           sdkResetTimer(&hTimer);
+    	   sdkStartTimer(&hTimer);
+
 	   // copy the entire initial input since this is less than 1M
        copy(d_InputKey, h_InputKey, N * sizeof(uint), cudaMemcpyHostToDevice, hTimerCopy);
         
@@ -137,7 +137,11 @@ int main(int argc, char **argv)
         // copy input to output array. Output array is used in subsequent calculations as intermediate results are stored in it
         memcpy(h_OutputKeyGPU, h_InputKey, N * sizeof(uint));
     	
-        if(verbose) {
+	// start timers        
+        sdkResetTimer(&hTimer);
+    	sdkStartTimer(&hTimer);
+        
+	if(verbose) {
             printf("Initial \n");
             printArray(h_OutputKeyGPU, N);
         }
