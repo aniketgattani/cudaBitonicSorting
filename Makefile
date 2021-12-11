@@ -291,20 +291,18 @@ bitonicSort.o:bitonicSort.cu
 main.o:main.cpp
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-oddEvenMergeSort.o:oddEvenMergeSort.cu
-	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
 sortingNetworks_validate.o:sortingNetworks_validate.cpp
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-sortingNetworks: bitonicSort.o main.o oddEvenMergeSort.o sortingNetworks_validate.o
+sortingNetworks: bitonicSort.o main.o sortingNetworks_validate.o
 	$(EXEC) $(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $+ $(LIBRARIES)
 
 run: build
 	$(EXEC) ./sortingNetworks $(k)
 
 clean:
-	rm -f sortingNetworks bitonicSort.o main.o oddEvenMergeSort.o sortingNetworks_validate.o
+	rm -f sortingNetworks bitonicSort.o main.o sortingNetworks_validate.o
 	rm -rf ../../bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)/sortingNetworks
 
 clobber: clean
