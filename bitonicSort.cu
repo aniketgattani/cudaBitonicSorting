@@ -17,7 +17,7 @@
 
 #include <assert.h>
 #include <cooperative_groups.h>
-
+#include <math.h>
 namespace cg = cooperative_groups;
 #include <helper_cuda.h>
 #include "sortingNetworks_common.h"
@@ -30,9 +30,7 @@ namespace cg = cooperative_groups;
 ////////////////////////////////////////////////////////////////////////////////
 __global__ void bitonicSortShared(
     uint *d_DstKey,
-    uint *d_DstVal,
     uint *d_SrcKey,
-    uint *d_SrcVal,
     uint arrayLength,
     uint dir
 )
@@ -41,17 +39,12 @@ __global__ void bitonicSortShared(
     cg::thread_block cta = cg::this_thread_block();
     //Shared memory storage for one or more short vectors
     __shared__ uint s_key[SHARED_SIZE_LIMIT];
-    __shared__ uint s_val[SHARED_SIZE_LIMIT];
 
     //Offset to the beginning of subbatch and load data
     d_SrcKey += blockIdx.x * SHARED_SIZE_LIMIT + threadIdx.x;
-    d_SrcVal += blockIdx.x * SHARED_SIZE_LIMIT + threadIdx.x;
     d_DstKey += blockIdx.x * SHARED_SIZE_LIMIT + threadIdx.x;
-    d_DstVal += blockIdx.x * SHARED_SIZE_LIMIT + threadIdx.x;
     s_key[threadIdx.x +                       0] = d_SrcKey[                      0];
-    s_val[threadIdx.x +                       0] = d_SrcVal[                      0];
-    s_key[threadIdx.x + (SHARED_SIZE_LIMIT / 2)] = d_SrcKey[(SHARED_SIZE_LIMIT / 2)];
-    s_val[threadIdx.x + (SHARED_SIZE_LIMIT / 2)] = d_SrcVal[(SHARED_SIZE_LIMIT / 2)];
+    s_key[threadIdx.x + (arrayLength / 2)] = d_SrcKey[(arrayLength / 2)];
 
     for (uint size = 2; size < arrayLength; size <<= 1)
     {
@@ -63,8 +56,8 @@ __global__ void bitonicSortShared(
             cg::sync(cta);
             uint pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
             Comparator(
-                s_key[pos +      0], s_val[pos +      0],
-                s_key[pos + stride], s_val[pos + stride],
+                s_key[pos +      0],
+                s_key[pos + stride],
                 ddd
             );
         }
@@ -77,8 +70,8 @@ __global__ void bitonicSortShared(
             cg::sync(cta);
             uint pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
             Comparator(
-                s_key[pos +      0], s_val[pos +      0],
-                s_key[pos + stride], s_val[pos + stride],
+                s_key[pos +      0],
+                s_key[pos + stride],
                 dir
             );
         }
@@ -86,9 +79,7 @@ __global__ void bitonicSortShared(
 
     cg::sync(cta);
     d_DstKey[                      0] = s_key[threadIdx.x +                       0];
-    d_DstVal[                      0] = s_val[threadIdx.x +                       0];
-    d_DstKey[(SHARED_SIZE_LIMIT / 2)] = s_key[threadIdx.x + (SHARED_SIZE_LIMIT / 2)];
-    d_DstVal[(SHARED_SIZE_LIMIT / 2)] = s_val[threadIdx.x + (SHARED_SIZE_LIMIT / 2)];
+    d_DstKey[(arrayLength / 2)] = s_key[threadIdx.x + (arrayLength / 2)];
 }
 
 
@@ -103,26 +94,19 @@ __global__ void bitonicSortShared(
 //Ascending | descending or descending | ascending sorted pairs
 __global__ void bitonicSortShared1(
     uint *d_DstKey,
-    uint *d_DstVal,
-    uint *d_SrcKey,
-    uint *d_SrcVal
+    uint *d_SrcKey
 )
 {
     // Handle to thread block group
     cg::thread_block cta = cg::this_thread_block();
     //Shared memory storage for current subarray
     __shared__ uint s_key[SHARED_SIZE_LIMIT];
-    __shared__ uint s_val[SHARED_SIZE_LIMIT];
 
     //Offset to the beginning of subarray and load data
     d_SrcKey += blockIdx.x * SHARED_SIZE_LIMIT + threadIdx.x;
-    d_SrcVal += blockIdx.x * SHARED_SIZE_LIMIT + threadIdx.x;
     d_DstKey += blockIdx.x * SHARED_SIZE_LIMIT + threadIdx.x;
-    d_DstVal += blockIdx.x * SHARED_SIZE_LIMIT + threadIdx.x;
     s_key[threadIdx.x +                       0] = d_SrcKey[                      0];
-    s_val[threadIdx.x +                       0] = d_SrcVal[                      0];
     s_key[threadIdx.x + (SHARED_SIZE_LIMIT / 2)] = d_SrcKey[(SHARED_SIZE_LIMIT / 2)];
-    s_val[threadIdx.x + (SHARED_SIZE_LIMIT / 2)] = d_SrcVal[(SHARED_SIZE_LIMIT / 2)];
 
     for (uint size = 2; size < SHARED_SIZE_LIMIT; size <<= 1)
     {
@@ -134,8 +118,8 @@ __global__ void bitonicSortShared1(
             cg::sync(cta);
             uint pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
             Comparator(
-                s_key[pos +      0], s_val[pos +      0],
-                s_key[pos + stride], s_val[pos + stride],
+                s_key[pos +      0],
+                s_key[pos + stride],
                 ddd
             );
         }
@@ -150,8 +134,8 @@ __global__ void bitonicSortShared1(
             cg::sync(cta);
             uint pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
             Comparator(
-                s_key[pos +      0], s_val[pos +      0],
-                s_key[pos + stride], s_val[pos + stride],
+                s_key[pos +      0],
+                s_key[pos + stride],
                 ddd
             );
         }
@@ -160,17 +144,13 @@ __global__ void bitonicSortShared1(
 
     cg::sync(cta);
     d_DstKey[                      0] = s_key[threadIdx.x +                       0];
-    d_DstVal[                      0] = s_val[threadIdx.x +                       0];
     d_DstKey[(SHARED_SIZE_LIMIT / 2)] = s_key[threadIdx.x + (SHARED_SIZE_LIMIT / 2)];
-    d_DstVal[(SHARED_SIZE_LIMIT / 2)] = s_val[threadIdx.x + (SHARED_SIZE_LIMIT / 2)];
 }
 
 //Bitonic merge iteration for stride >= SHARED_SIZE_LIMIT
 __global__ void bitonicMergeGlobal(
     uint *d_DstKey,
-    uint *d_DstVal,
     uint *d_SrcKey,
-    uint *d_SrcVal,
     uint arrayLength,
     uint size,
     uint stride,
@@ -179,35 +159,28 @@ __global__ void bitonicMergeGlobal(
 {
     uint global_comparatorI = blockIdx.x * blockDim.x + threadIdx.x;
     uint        comparatorI = global_comparatorI & (arrayLength / 2 - 1);
-
+    
     //Bitonic merge
     uint ddd = dir ^ ((comparatorI & (size / 2)) != 0);
     uint pos = 2 * global_comparatorI - (global_comparatorI & (stride - 1));
 
     uint keyA = d_SrcKey[pos +      0];
-    uint valA = d_SrcVal[pos +      0];
     uint keyB = d_SrcKey[pos + stride];
-    uint valB = d_SrcVal[pos + stride];
 
-    Comparator(
-        keyA, valA,
-        keyB, valB,
+   Comparator(
+        keyA,
+        keyB,
         ddd
-    );
-
+    ); 
     d_DstKey[pos +      0] = keyA;
-    d_DstVal[pos +      0] = valA;
     d_DstKey[pos + stride] = keyB;
-    d_DstVal[pos + stride] = valB;
 }
 
 //Combined bitonic merge steps for
 //size > SHARED_SIZE_LIMIT and stride = [1 .. SHARED_SIZE_LIMIT / 2]
 __global__ void bitonicMergeShared(
     uint *d_DstKey,
-    uint *d_DstVal,
     uint *d_SrcKey,
-    uint *d_SrcVal,
     uint arrayLength,
     uint size,
     uint dir
@@ -217,16 +190,11 @@ __global__ void bitonicMergeShared(
     cg::thread_block cta = cg::this_thread_block();
     //Shared memory storage for current subarray
     __shared__ uint s_key[SHARED_SIZE_LIMIT];
-    __shared__ uint s_val[SHARED_SIZE_LIMIT];
 
     d_SrcKey += blockIdx.x * SHARED_SIZE_LIMIT + threadIdx.x;
-    d_SrcVal += blockIdx.x * SHARED_SIZE_LIMIT + threadIdx.x;
     d_DstKey += blockIdx.x * SHARED_SIZE_LIMIT + threadIdx.x;
-    d_DstVal += blockIdx.x * SHARED_SIZE_LIMIT + threadIdx.x;
     s_key[threadIdx.x +                       0] = d_SrcKey[                      0];
-    s_val[threadIdx.x +                       0] = d_SrcVal[                      0];
     s_key[threadIdx.x + (SHARED_SIZE_LIMIT / 2)] = d_SrcKey[(SHARED_SIZE_LIMIT / 2)];
-    s_val[threadIdx.x + (SHARED_SIZE_LIMIT / 2)] = d_SrcVal[(SHARED_SIZE_LIMIT / 2)];
 
     //Bitonic merge
     uint comparatorI = UMAD(blockIdx.x, blockDim.x, threadIdx.x) & ((arrayLength / 2) - 1);
@@ -237,17 +205,15 @@ __global__ void bitonicMergeShared(
         cg::sync(cta);
         uint pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
         Comparator(
-            s_key[pos +      0], s_val[pos +      0],
-            s_key[pos + stride], s_val[pos + stride],
+            s_key[pos +      0],
+            s_key[pos + stride],
             ddd
         );
     }
 
     cg::sync(cta);
     d_DstKey[                      0] = s_key[threadIdx.x +                       0];
-    d_DstVal[                      0] = s_val[threadIdx.x +                       0];
     d_DstKey[(SHARED_SIZE_LIMIT / 2)] = s_key[threadIdx.x + (SHARED_SIZE_LIMIT / 2)];
-    d_DstVal[(SHARED_SIZE_LIMIT / 2)] = s_val[threadIdx.x + (SHARED_SIZE_LIMIT / 2)];
 }
 
 
@@ -273,11 +239,9 @@ extern "C" uint factorRadix2(uint *log2L, uint L)
 
 extern "C" uint bitonicSort(
     uint *d_DstKey,
-    uint *d_DstVal,
     uint *d_SrcKey,
-    uint *d_SrcVal,
-    uint batchSize,
     uint arrayLength,
+    uint onlyMerge,
     uint dir
 )
 {
@@ -292,29 +256,57 @@ extern "C" uint bitonicSort(
 
     dir = (dir != 0);
 
-    uint  blockCount = batchSize * arrayLength / SHARED_SIZE_LIMIT;
+    uint blockCount = arrayLength / SHARED_SIZE_LIMIT;
     uint threadCount = SHARED_SIZE_LIMIT / 2;
-
-    if (arrayLength <= SHARED_SIZE_LIMIT)
-    {
-        assert((batchSize * arrayLength) % SHARED_SIZE_LIMIT == 0);
-        bitonicSortShared<<<blockCount, threadCount>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal, arrayLength, dir);
+    
+    // entire array can fit in the shared memory so just sort in the shared memory
+    if(arrayLength <= SHARED_SIZE_LIMIT){
+	   bitonicSortShared<<<1, arrayLength/2>>>(d_DstKey, d_SrcKey, arrayLength, dir);
     }
+    /* when only global merge is required and no sorting. This is called when arrayLength > 1M and stride > 0.5M
+        Note: The arrayLength and stride mentioned above are implied from main.cpp
+    */
+    else if (onlyMerge==1)
+    {
+    	uint size = arrayLength;
+    	uint stride = arrayLength/2;
+        bitonicMergeGlobal<<<max(1, blockCount), min(threadCount, arrayLength/2)>>>(d_DstKey, d_SrcKey, arrayLength, size, stride, dir);
+    }
+    /* when only global merge is required and no sorting. This is called when array arrayLength > 1M and stride <= 0.5M
+            Note: The arrayLength and stride mentioned above are implied from main.cpp
+    */
+    else if (onlyMerge==2){
+        uint size = arrayLength;    
+        cudaMemcpy(d_DstKey, d_SrcKey, arrayLength*sizeof(unsigned int), cudaMemcpyDeviceToDevice);
+
+        for (uint stride = size/2; stride > 0; stride >>=1) {
+            if (stride >= SHARED_SIZE_LIMIT){
+                bitonicMergeGlobal<<<max(1,blockCount), min(threadCount, arrayLength/2)>>>(d_DstKey, d_DstKey, arrayLength, size, stride, dir);
+            }
+            else{
+                bitonicMergeShared<<<blockCount, threadCount>>>(d_DstKey, d_DstKey, arrayLength, size, dir);
+                break;
+            }
+        }
+    }
+    // normal case when arrayLength <= 1M and arrayLength > SHARED_SIZE_LIMIT 
     else
     {
-        bitonicSortShared1<<<blockCount, threadCount>>>(d_DstKey, d_DstVal, d_SrcKey, d_SrcVal);
-
-        for (uint size = 2 * SHARED_SIZE_LIMIT; size <= arrayLength; size <<= 1)
-            for (unsigned stride = size / 2; stride > 0; stride >>= 1)
+        bitonicSortShared1<<<blockCount, threadCount>>>(d_DstKey, d_SrcKey);
+	   
+        for (uint size = 2 * SHARED_SIZE_LIMIT; size <= arrayLength; size <<= 1){
+            for (unsigned stride = size / 2; stride > 0; stride >>= 1){
                 if (stride >= SHARED_SIZE_LIMIT)
                 {
-                    bitonicMergeGlobal<<<(batchSize * arrayLength) / 512, 256>>>(d_DstKey, d_DstVal, d_DstKey, d_DstVal, arrayLength, size, stride, dir);
+                    bitonicMergeGlobal<<<max(1,blockCount), min(threadCount, arrayLength/2)>>>(d_DstKey, d_DstKey, arrayLength, size, stride, dir);
                 }
                 else
                 {
-                    bitonicMergeShared<<<blockCount, threadCount>>>(d_DstKey, d_DstVal, d_DstKey, d_DstVal, arrayLength, size, dir);
+                    bitonicMergeShared<<<blockCount, threadCount>>>(d_DstKey, d_DstKey, arrayLength, size, dir);
                     break;
                 }
+            }
+        }
     }
 
     return threadCount;

@@ -16,7 +16,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 typedef unsigned int uint;
 
-
+#define SHARED_SIZE_LIMIT 1024U
+#define Nmax 1048576U
 
 ///////////////////////////////////////////////////////////////////////////////
 // Sort result validation routines
@@ -28,39 +29,18 @@ extern "C" uint validateSortedKeys(
     uint batchSize,
     uint arrayLength,
     uint numValues,
-    uint dir
+    uint dir,
+    uint verbose
 );
-
-extern "C" int validateValues(
-    uint *resKey,
-    uint *resVal,
-    uint *srcKey,
-    uint batchSize,
-    uint arrayLength
-);
-
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // CUDA sorting networks
 ////////////////////////////////////////////////////////////////////////////////
-
 extern "C" uint bitonicSort(
     uint *d_DstKey,
-    uint *d_DstVal,
     uint *d_SrcKey,
-    uint *d_SrcVal,
-    uint batchSize,
     uint arrayLength,
-    uint dir
-);
-
-extern "C" void oddEvenMergeSort(
-    uint *d_DstKey,
-    uint *d_DstVal,
-    uint *d_SrcKey,
-    uint *d_SrcVal,
-    uint batchSize,
-    uint arrayLength,
+    uint onlyMerge,
     uint dir
 );

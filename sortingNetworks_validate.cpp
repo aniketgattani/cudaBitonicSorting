@@ -27,7 +27,8 @@ extern "C" uint validateSortedKeys(
     uint batchSize,
     uint arrayLength,
     uint numValues,
-    uint dir
+    uint dir,
+    uint verbose
 )
 {
     uint *srcHist;
@@ -54,7 +55,7 @@ extern "C" uint validateSortedKeys(
 
         for (uint i = 0; i < arrayLength; i++)
         {
-            if (srcKey[i] < numValues && resKey[i] < numValues)
+	    if (srcKey[i] < numValues && resKey[i] < numValues)
             {
                 srcHist[srcKey[i]]++;
                 resHist[resKey[i]]++;
@@ -62,7 +63,9 @@ extern "C" uint validateSortedKeys(
             else
             {
                 flag = 0;
-                break;
+                printf("not equal at %u \n", i);
+		break;
+                
             }
         }
 
@@ -102,6 +105,7 @@ extern "C" uint validateSortedKeys(
             for (uint i = 0; i < arrayLength - 1; i++)
                 if (resKey[i + 1] > resKey[i])
                 {
+			printf("not ordered at i %u \n",i);
                     flag = 0;
                     break;
                 }
@@ -121,36 +125,4 @@ brk:
     if (flag) printf("OK\n");
 
     return flag;
-}
-
-
-
-extern "C" int validateValues(
-    uint *resKey,
-    uint *resVal,
-    uint *srcKey,
-    uint batchSize,
-    uint arrayLength
-)
-{
-    int correctFlag = 1, stableFlag = 1;
-
-    printf("...inspecting keys and values array: ");
-
-    for (uint i = 0; i < batchSize; i++, resKey += arrayLength, resVal += arrayLength)
-    {
-        for (uint j = 0; j < arrayLength; j++)
-        {
-            if (resKey[j] != srcKey[resVal[j]])
-                correctFlag = 0;
-
-            if ((j < arrayLength - 1) && (resKey[j] == resKey[j + 1]) && (resVal[j] > resVal[j + 1]))
-                stableFlag = 0;
-        }
-    }
-
-    printf(correctFlag ? "OK\n" : "***corrupted!!!***\n");
-    printf(stableFlag ? "...stability property: stable!\n" : "...stability property: NOT stable\n");
-
-    return correctFlag;
 }
