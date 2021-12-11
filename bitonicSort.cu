@@ -167,7 +167,11 @@ __global__ void bitonicMergeGlobal(
     uint keyA = d_SrcKey[pos +      0];
     uint keyB = d_SrcKey[pos + stride];
 
-    
+   Comparator(
+        keyA,
+        keyB,
+        ddd
+    ); 
 	//printf("%u %u \n", keyA, keyB);
     d_DstKey[pos +      0] = keyA;
     d_DstKey[pos + stride] = keyB;
@@ -281,12 +285,7 @@ extern "C" uint bitonicSort(
     }
     else
     {
-        printf("idhar aaya \n"); 
         bitonicSortShared1<<<blockCount, threadCount>>>(d_DstKey, d_SrcKey);
-        int temp[arrayLength];
-        cudaMemcpy(temp, d_DstKey, 8*sizeof(unsigned int), cudaMemcpyDeviceToHost);
-        for(int i=0; i < arrayLength; i++) printf("%u ", temp[i]);
-        printf("\n");
 	   
         for (uint size = 2 * SHARED_SIZE_LIMIT; size <= arrayLength; size <<= 1){
             for (unsigned stride = size / 2; stride > 0; stride >>= 1){
