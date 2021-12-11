@@ -167,16 +167,7 @@ __global__ void bitonicMergeGlobal(
     uint keyA = d_SrcKey[pos +      0];
     uint keyB = d_SrcKey[pos + stride];
 
-    for(int i=0;i<8;i++) {
-//	printf("%u-%u ", d_SrcKey[i], threadIdx.x);
-
-    }
-    //printf(" %d, %d, %d, %u, %u, %u, %u \n", blockIdx.x, blockDim.x, threadIdx.x, d_SrcKey[pos], d_SrcKey[pos+stride], pos, pos+stride);
-    Comparator(
-        keyA,
-        keyB,
-        ddd
-    );
+    
 	//printf("%u %u \n", keyA, keyB);
     d_DstKey[pos +      0] = keyA;
     d_DstKey[pos + stride] = keyB;

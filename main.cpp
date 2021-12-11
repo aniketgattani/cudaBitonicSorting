@@ -79,8 +79,8 @@ int main(int argc, char **argv)
     sdkCreateTimer(&hTimer);
     sdkCreateTimer(&hTimerCopy);
 
-    cudaMallocHost((uint *) &h_InputKey,(N * sizeof(uint));
-    cudaMallocHost((uint *) &h_OutputKeyGPU,(N * sizeof(uint));
+    cudaMallocHost((void **) &h_InputKey, N * sizeof(uint));
+    cudaMallocHost((void **) &h_OutputKeyGPU, N * sizeof(uint));
     
     srand(2001);
 
@@ -101,16 +101,16 @@ int main(int argc, char **argv)
 
     error = cudaDeviceSynchronize();
     checkCudaErrors(error);
-
-    sdkResetTimer(&hTimer);
-    sdkStartTimer(&hTimer);
             
     uint arrayLength = Nmax;
     uint dir = DIR;
     uint threadCount;
 
     if(N < Nmax) {
-        copy(d_InputKey, h_InputKey, N * sizeof(uint), cudaMemcpyHostToDevice, hTimerCopy);
+    	sdkResetTimer(&hTimer);
+    	sdkStartTimer(&hTimer);
+        
+	copy(d_InputKey, h_InputKey, N * sizeof(uint), cudaMemcpyHostToDevice, hTimerCopy);
         
         threadCount = bitonicSort(
             d_OutputKey,
@@ -128,7 +128,10 @@ int main(int argc, char **argv)
     else{
         memcpy(h_OutputKeyGPU, h_InputKey, N * sizeof(uint));
         
-    	if(verbose) printArray(h_OutputKeyGPU, N);
+    	sdkResetTimer(&hTimer);
+    	sdkStartTimer(&hTimer);
+    	
+	if(verbose) printArray(h_OutputKeyGPU, N);
         
 	   for(arrayLength = Nmax; arrayLength <= N; arrayLength*=2){
             
@@ -212,8 +215,9 @@ int main(int argc, char **argv)
     sdkDeleteTimer(&hTimer);
     cudaFree(d_OutputKey);
     cudaFree(d_InputKey);
-    free(h_OutputKeyGPU);
-    free(h_InputKey);
+    cudaFreeHost(h_OutputKeyGPU);
+    cudaFreeHost(h_InputKey);
 
     exit(flag ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+
