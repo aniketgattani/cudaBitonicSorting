@@ -172,7 +172,6 @@ __global__ void bitonicMergeGlobal(
         keyB,
         ddd
     ); 
-	//printf("%u %u \n", keyA, keyB);
     d_DstKey[pos +      0] = keyA;
     d_DstKey[pos + stride] = keyB;
 }
@@ -260,29 +259,37 @@ extern "C" uint bitonicSort(
     uint blockCount = arrayLength / SHARED_SIZE_LIMIT;
     uint threadCount = SHARED_SIZE_LIMIT / 2;
     
+    // entire array can fit in the shared memory so just sort in the shared memory
     if(arrayLength <= SHARED_SIZE_LIMIT){
 	   bitonicSortShared<<<1, arrayLength/2>>>(d_DstKey, d_SrcKey, arrayLength, dir);
     }
+    /* when only global merge is required and no sorting. This is called when arrayLength > 1M and stride > 0.5M
+        Note: The arrayLength and stride mentioned above are implied from main.cpp
+    */
     else if (onlyMerge==1)
     {
     	uint size = arrayLength;
     	uint stride = arrayLength/2;
         bitonicMergeGlobal<<<max(1, blockCount), min(threadCount, arrayLength/2)>>>(d_DstKey, d_SrcKey, arrayLength, size, stride, dir);
     }
+    /* when only global merge is required and no sorting. This is called when array arrayLength > 1M and stride <= 0.5M
+            Note: The arrayLength and stride mentioned above are implied from main.cpp
+    */
     else if (onlyMerge==2){
         uint size = arrayLength;    
-        for (unsigned stride = size / 2; stride > 0; stride >>= 1){
-            if (stride >= SHARED_SIZE_LIMIT)
-            {
-                bitonicMergeGlobal<<<max(1,blockCount), arrayLength/(2*max(1, blockCount))>>>(d_DstKey, d_DstKey, arrayLength, stride*2, stride, dir);
+        cudaMemcpy(d_DstKey, d_SrcKey, arrayLength*sizeof(unsigned int), cudaMemcpyDeviceToDevice);
+
+        for (uint stride = size/2; stride > 0; stride >>=1) {
+            if (stride >= SHARED_SIZE_LIMIT){
+                bitonicMergeGlobal<<<max(1,blockCount), min(threadCount, arrayLength/2)>>>(d_DstKey, d_DstKey, arrayLength, size, stride, dir);
             }
-            else
-            {
-                bitonicMergeShared<<<blockCount, threadCount>>>(d_DstKey, d_DstKey, arrayLength, stride*2, dir);
+            else{
+                bitonicMergeShared<<<blockCount, threadCount>>>(d_DstKey, d_DstKey, arrayLength, size, dir);
                 break;
             }
         }
     }
+    // normal case when arrayLength <= 1M and arrayLength > SHARED_SIZE_LIMIT 
     else
     {
         bitonicSortShared1<<<blockCount, threadCount>>>(d_DstKey, d_SrcKey);

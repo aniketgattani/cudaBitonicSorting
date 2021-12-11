@@ -70,7 +70,7 @@ int main(int argc, char **argv)
     const uint             N = pow(2, atoi(argv[1]));
     const uint           DIR = 0;
     const uint     numValues = 65536;
-    uint verbose = 1;
+    uint verbose = 0;
     if(argc>=3) atoi(argv[2]);
 
     printf("Allocating and initializing host arrays...\n\n");
@@ -110,10 +110,11 @@ int main(int argc, char **argv)
     uint dir = DIR;
     uint threadCount;
 
+    // start timers        
+    sdkResetTimer(&hTimer);
+    sdkStartTimer(&hTimer);
+
     if(N < Nmax) {
-    	sdkResetTimer(&hTimer);
-    	sdkStartTimer(&hTimer);
-        
 	   // copy the entire initial input since this is less than 1M
        copy(d_InputKey, h_InputKey, N * sizeof(uint), cudaMemcpyHostToDevice, hTimerCopy);
         
@@ -132,11 +133,9 @@ int main(int argc, char **argv)
         copy(h_OutputKeyGPU, d_OutputKey, N * sizeof(uint), cudaMemcpyDeviceToHost, hTimerCopy);
     }
     else{
+       
         // copy input to output array. Output array is used in subsequent calculations as intermediate results are stored in it
         memcpy(h_OutputKeyGPU, h_InputKey, N * sizeof(uint));
-        
-    	sdkResetTimer(&hTimer);
-    	sdkStartTimer(&hTimer);
     	
         if(verbose) {
             printf("Initial \n");
@@ -144,35 +143,29 @@ int main(int argc, char **argv)
         }
         
 	    /* As with every bitonic sort, first sort bottom to top and then merge top to bottom 
-            Only change here is that merge and sorts for 
+            So first we sort chunks of size Nmax when arrayLength=Nmax, onlyMerge = 0
+            When arrayLength > Nmax and stride > 0.5M, we can only merge globally, so onlyMerge = 1
+            When arrayLength > Nmax and stride = 0.5M, we only need to merge and not sort it so onlyMerge = 2
         */
         for(arrayLength = Nmax; arrayLength <= N; arrayLength*=2){
 
             for(uint size = arrayLength, stride = arrayLength/2; size >= Nmax; size >>= 1, stride >>= 1){
-        	    
-                if(verbose) printf("Performing Bitonic Merge using Nmax at a time, size: %u, stride: %u \n", size, stride); 
-                
+        	                    
                 for(uint i=0; i < N/size; i++){
                     
                     for(uint j=0; j < stride/(Nmax/2); j++){
-			             /* dir changes with each even odd subarray of length = arrayLength */
+                        /* dir changes with each even odd subarray of length = arrayLength */
                         dir = ((i*size + j*(Nmax/2))/arrayLength)%2;
                         
                         uint onlyMerge = 1;
                         if(arrayLength == Nmax) onlyMerge = 0;
                         else if(size == Nmax) onlyMerge = 2;
-                        
-                        if(verbose) printf("i %u j %u size %u stride %u dir %u onlyMerge %u \n", i, j, size, stride, dir, onlyMerge);	    
-                        
+                                                
                         h1_OutputKeyGPU = h_OutputKeyGPU + i*size + j*(Nmax/2);
                         
+                        // copy the first half to device
                         copy(d_InputKey, h1_OutputKeyGPU, Nmax/2 * sizeof(uint), cudaMemcpyHostToDevice, hTimerCopy);
-                        
-                        if(verbose)  {
-                            printf("1st half \n");
-                            printArray(h1_OutputKeyGPU, Nmax/2); 
-                        }
-
+                        // copy the second half separated by a stride length to device
                         copy(d_InputKey + Nmax/2, h1_OutputKeyGPU + stride, Nmax/2 * sizeof(uint), cudaMemcpyHostToDevice, hTimerCopy);
                         
                         if(verbose)  {
@@ -193,19 +186,10 @@ int main(int argc, char **argv)
                     
         	            h1_OutputKeyGPU = h_OutputKeyGPU + i*size + j*(Nmax/2);
 
+                        // copy results back
                         copy(h1_OutputKeyGPU, d_OutputKey, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost, hTimerCopy);
-                        
-			            if(verbose) {
-            				printf("1st half output \n");	
-            				printArray(h1_OutputKeyGPU, Nmax/2); 
-                        }
-        	            
                         copy(h1_OutputKeyGPU + stride, d_OutputKey + Nmax/2, Nmax/2 * sizeof(uint), cudaMemcpyDeviceToHost, hTimerCopy);
                         
-                        if(verbose) {
-            				printf("2nd half output \n");
-            				printArray(h1_OutputKeyGPU + stride, Nmax/2); 
-            			}
                     }
                 }
             }
@@ -216,7 +200,6 @@ int main(int argc, char **argv)
     sdkStopTimer(&hTimer);
     printf("Average time: %f ms\n\n", sdkGetTimerValue(&hTimer) / numIterations);
 
-    
     double dTimeSecs = 1.0e-3 * sdkGetTimerValue(&hTimer) / numIterations;
     printf("sortingNetworks-bitonic, Throughput = %.4f MElements/s, Time = %.5f s, CopyTime = %.5f, Size = %u elements, NumDevsUsed = %u, Workgroup = %u\n",
            (1.0e-6 * (double)N/dTimeSecs), dTimeSecs, copyTime, N, 1, threadCount);
